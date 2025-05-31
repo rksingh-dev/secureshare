@@ -15,7 +15,7 @@ let pinataConfig: PinataConfig | null = null;
 export const initializePinata = () => {
   const { apiKey, apiSecret } = PINATA_CONFIG;
 
-  if (!apiKey || !apiSecret || apiKey === 'YOUR_PINATA_API_KEY' || apiSecret === 'YOUR_PINATA_API_SECRET') {
+  if (!apiKey || !apiSecret) {
     throw new Error(
       'Pinata API credentials not configured. Please update the credentials in src/config/pinata.ts'
     );
@@ -29,7 +29,7 @@ export const initializePinata = () => {
   console.log('Pinata initialized successfully');
 };
 
-const getPinataHeaders = () => {
+export const getPinataHeaders = () => {
   if (!pinataConfig) {
     // Try to initialize if not already initialized
     try {
@@ -44,7 +44,7 @@ const getPinataHeaders = () => {
 
   return {
     'pinata_api_key': pinataConfig!.apiKey,
-    'pinata_secret_api_key': pinataConfig!.apiSecret,
+    'pinata_secret_api_key': pinataConfig!.apiSecret
   };
 };
 
@@ -64,6 +64,7 @@ export const uploadToIPFS = async (
     accessCode: string;
     expiryTime: string;
     usageCount: number;
+    encryptionKey: string;
   }
 ): Promise<string> => {
   try {
@@ -73,13 +74,18 @@ export const uploadToIPFS = async (
     const blob = new Blob([encryptedData], { type: metadata.type });
     formData.append('file', blob, metadata.name);
     
-    // Add metadata
+    // Add metadata with access code and encryption info
     formData.append('pinataMetadata', JSON.stringify({
       name: `${metadata.name}_encrypted`,
       keyvalues: {
+        accessCode: metadata.accessCode,
         type: metadata.type,
         expiryTime: metadata.expiryTime,
         usageCount: metadata.usageCount.toString(),
+        used: 'false',
+        recipientName: metadata.recipientName || '',
+        notes: metadata.notes || '',
+        encryptionKey: metadata.encryptionKey,
       }
     }));
     
@@ -107,7 +113,7 @@ export const uploadToIPFS = async (
       {
         headers: {
           ...getPinataHeaders(),
-          ...formData.getHeaders(),
+          'Content-Type': 'multipart/form-data',
         },
         maxBodyLength: Infinity,
       }
@@ -120,22 +126,33 @@ export const uploadToIPFS = async (
     return response.data.IpfsHash;
   } catch (error) {
     console.error('Error uploading to IPFS:', error);
+    if (axios.isAxiosError(error)) {
+      console.error('Response data:', error.response?.data);
+      console.error('Response status:', error.response?.status);
+    }
     throw new Error('Failed to upload document to IPFS');
   }
 };
 
 /**
- * Retrieves data from IPFS via Pinata
- * @param cid The IPFS CID
- * @returns Promise that resolves with the data as ArrayBuffer
+ * Retrieves a file from IPFS using the Pinata gateway
  */
 export const retrieveFromIPFS = async (cid: string): Promise<ArrayBuffer> => {
   try {
-    const response = await axios.get(`${PINATA_GATEWAY_URL}/${cid}`, {
+    console.log('Retrieving file from IPFS:', cid);
+    
+    // Use the public gateway URL
+    const url = `https://gateway.pinata.cloud/ipfs/${cid}`;
+    
+    // For public gateway access, we don't need authentication headers
+    const response = await axios.get(url, {
       responseType: 'arraybuffer',
-      headers: getPinataHeaders(),
+      headers: {
+        'Accept': '*/*',
+      },
     });
     
+    console.log('File retrieved successfully');
     return response.data;
   } catch (error) {
     console.error('Error retrieving from IPFS:', error);
@@ -168,11 +185,16 @@ export const unpinFromIPFS = async (cid: string): Promise<void> => {
  */
 export const testPinataConnection = async (): Promise<void> => {
   try {
-    await axios.get(`${PINATA_API_URL}/data/testAuthentication`, {
-      headers: getPinataHeaders(),
+    const response = await axios.get(`${PINATA_API_URL}/data/testAuthentication`, {
+      headers: getPinataHeaders()
     });
+    console.log('Pinata test response:', response.data);
   } catch (error) {
     console.error('Error testing Pinata connection:', error);
+    if (axios.isAxiosError(error)) {
+      console.error('Response data:', error.response?.data);
+      console.error('Response status:', error.response?.status);
+    }
     throw new Error('Failed to connect to Pinata');
   }
 };

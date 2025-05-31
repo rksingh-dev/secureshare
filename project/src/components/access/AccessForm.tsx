@@ -65,24 +65,30 @@ const AccessForm: React.FC<AccessFormProps> = ({ onAccessSuccess, onAccessError 
   };
   
   const onSubmit = async (data: FormData) => {
+    console.log('Form submitted with data:', data);
     try {
       setIsLoading(true);
       
       // Combine the digits into a single access code
       const accessCode = data.accessCode.join('');
+      console.log('Combined access code:', accessCode);
       
       if (accessCode.length !== 6) {
         throw new Error('Please enter a valid 6-digit access code');
       }
       
+      console.log('Attempting to retrieve document...');
       // Retrieve the document using the access code
       const documentData = await retrieveDocument(accessCode);
+      console.log('Document retrieved successfully:', documentData);
       
+      console.log('Attempting to decrypt document...');
       // Decrypt the document
       const decryptedContent = await decryptData(
         documentData.encryptedContent, 
         documentData.encryptionKey
       );
+      console.log('Document decrypted successfully');
       
       onAccessSuccess({
         documentUrl: documentData.documentUrl,
@@ -92,7 +98,10 @@ const AccessForm: React.FC<AccessFormProps> = ({ onAccessSuccess, onAccessError 
       });
       
     } catch (error) {
+      console.error('Error in onSubmit:', error);
       onAccessError(error instanceof Error ? error : new Error('Failed to access document'));
+    } finally {
+      setIsLoading(false);
     }
   };
   

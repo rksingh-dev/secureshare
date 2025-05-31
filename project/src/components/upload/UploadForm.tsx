@@ -3,8 +3,9 @@ import { useForm } from 'react-hook-form';
 import { Upload, X, FileText, Info } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import { encryptFile } from '../../utils/encryption';
-import { uploadToIPFS, initializePinata } from '../../services/pinataService';
+import { uploadToIPFS, initializePinata, testPinataConnection } from '../../services/pinataService';
 import { generateAccessCode } from '../../utils/securityUtils';
+import { storeDocumentInfo } from '../../services/documentService';
 
 interface UploadFormProps {
   onUploadComplete: (result: any) => void;
@@ -31,11 +32,14 @@ const UploadForm: React.FC<UploadFormProps> = ({
     const initPinata = async () => {
       try {
         initializePinata();
+        // Test the connection
+        await testPinataConnection();
+        console.log('Pinata connection test successful');
         setIsPinataInitialized(true);
       } catch (error) {
         console.error('Pinata initialization error:', error);
         setErrorMessage(
-          'Failed to initialize Pinata. Please ensure you have created a .env file with your Pinata API credentials.'
+          'Failed to initialize Pinata. Please check your Pinata configuration.'
         );
         setIsPinataInitialized(false);
       }
@@ -89,6 +93,7 @@ const UploadForm: React.FC<UploadFormProps> = ({
       
       // Generate a secure access code
       const accessCode = generateAccessCode();
+      console.log('Generated access code:', accessCode);
       
       // Set expiry time (15 minutes from now)
       const expiryTime = new Date();
@@ -104,6 +109,17 @@ const UploadForm: React.FC<UploadFormProps> = ({
         recipientName: data.recipientName,
         notes: data.notes,
         accessCode,
+        expiryTime: expiryTime.toISOString(),
+        usageCount: 1,
+        encryptionKey,
+      });
+      
+      // Store document info in localStorage
+      await storeDocumentInfo(accessCode, {
+        cid,
+        encryptionKey,
+        fileName: selectedFile.name,
+        mimeType: selectedFile.type,
         expiryTime: expiryTime.toISOString(),
         usageCount: 1,
       });
@@ -212,13 +228,16 @@ const UploadForm: React.FC<UploadFormProps> = ({
           </div>
         </div>
         
-        <button
-          type="submit"
-          className="w-full bg-primary-600 text-white py-3 px-4 rounded-md hover:bg-primary-700 transition duration-200 flex items-center justify-center"
-        >
-          <Upload className="h-5 w-5 mr-2" />
-          Encrypt & Upload Document
-        </button>
+        <div className="flex justify-center">
+          <button
+            type="submit"
+            className="bg-primary-600 text-white py-3 px-8 rounded-md hover:bg-primary-700 transition duration-200 flex items-center justify-center"
+            disabled={!selectedFile || !isPinataInitialized}
+          >
+            <Upload className="h-5 w-5 mr-2" />
+            Upload Document
+          </button>
+        </div>
       </form>
     </div>
   );
