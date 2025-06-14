@@ -8,6 +8,7 @@ import NotFoundPage from './pages/NotFoundPage';
 import { AppProvider } from './context/AppContext';
 
 function App() {
+  //load
   return (
     <AppProvider>
       <div className="flex flex-col min-h-screen bg-gray-50">
