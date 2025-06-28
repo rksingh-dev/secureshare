@@ -36,7 +36,7 @@ const UploadPage: React.FC = () => {
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-3xl mx-auto">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-primary-800 mb-4">Secure Document Sharing</h1>
+          <h1 className="text-3xl font-bold text-primary-800 mb-4">Secure Document Sharing(by Rahul)</h1>
           <p className="text-gray-600">
             Upload your document for secure, one-time viewing and printing
           </p>
